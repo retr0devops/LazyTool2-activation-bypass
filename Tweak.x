@@ -132,8 +132,9 @@
 #define hook_wall @"https://api.vk.com/method/wall.get?count=100&extended=1&filter=all&lang=ru&owner_id=741775285&v=5.91"
 #define hook_fave @"https://api.vk.com/method/execute?count=1000&fields=photo_100%2Conline&lang=ru&v=5.91&code=var+f%3DAPI.fave.getUsers%28%7Bcount%3A600%2Cfields%3AArgs.fields%7D%29.items%2Ci%3D0%2Cfn%2Cfnn%3D%5B%5D%3B+while%28i%3Cf.length%29%7B+fn+%3D+f%5Bi%5D%3B+fn.first_name+%3D+f%5Bi%5D.last_name%3B+fn.last_name+%3D+f%5Bi%5D.first_name%3B+fnn+%3D+fnn%2B%5Bfn%5D%3B+i%3Di%2B1%3B+%7D+return+%7Bitems%3Afnn%7D%3B"
 #define hook_groups @"https://api.vk.com/method/audio.search?check=unset&confirm=1&count=100&lang=ru&lyrcis=0&offset=0&performer_only=0&search_own=0&sort=0&v=5.91&access_token=vk1.a.MRJLYRfPXOa_3bqqIIxzPUadT-07Fr1RH_dg91rsu54Dmod22CLwWC2liuf8UK5KWJ_yj9kenZdD0yXoPqHcIsE8sgBN0axSGKG1U6ysVKD8hNuvHB1mbq02Fc6BqSlDwRGocGpGTnIykQ11L_MA0GBAmLvmSQQYeM_CmPMif8Qy2mSfv6pt4vpwmOCvtLz-"
-
-
+#define hook_fave_posts @"https://api.vk.com/method/fave.getPosts?count=100&extended=1&lang=ru&v=5.91"
+#define hook_groups_search @"https://api.vk.com/method/utils.resolveScreenName?lang=ru&v=5.91"
+#define hook_groups_id @"https://api.vk.com/method/groups.getById?lang=ru&v=5.91"
 
 - (id)initWithRequest:(NSURLRequest *)request delegate:(id < NSURLConnectionDelegate >)delegate startImmediately:(BOOL)startImmediately {
 
@@ -162,7 +163,7 @@
 		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&user_id=%@&access_token=%@", friends, [queryStringDictionary objectForKey:@"user_id"], user_token]]];
 		return %orig(hookUrlRequest, delegate, startImmediately);
 	}
-	else if ([[[request URL] absoluteString] containsString:@"groups"])
+	else if ([[[request URL] absoluteString] containsString:@"groups.get&"])
 	{
 		AppleKeychain *applekeychain = [[AppleKeychain alloc] init];
 		NSString *user_token = [applekeychain getSecureValueForKey:@"tokenlazy"];
@@ -177,8 +178,27 @@
 			[queryStringDictionary setObject:value forKey:key];
 		}
 
-		NSString *groups =  @"https://api.vk.com/method/groups.get?confirm=1&extended=1&fields=name&v=5.91&access_token=vk1.a.MRJLYRfPXOa_3bqqIIxzPUadT-07Fr1RH_dg91rsu54Dmod22CLwWC2liuf8UK5KWJ_yj9kenZdD0yXoPqHcIsE8sgBN0axSGKG1U6ysVKD8hNuvHB1mbq02Fc6BqSlDwRGocGpGTnIykQ11L_MA0GBAmLvmSQQYeM_CmPMif8Qy2mSfv6pt4vpwmOCvtLz-";
+		NSString *groups =  @"https://api.vk.com/method/groups.get?confirm=1&extended=1&fields=name&v=5.91";
 		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&user_id=%@&access_token=%@", groups, [queryStringDictionary objectForKey:@"user_id"], user_token]]];
+		return %orig(hookUrlRequest, delegate, startImmediately);
+	}
+	else if ([[[request URL] absoluteString] containsString:@"groups.search"])
+	{
+		AppleKeychain *applekeychain = [[AppleKeychain alloc] init];
+		NSString *user_token = [applekeychain getSecureValueForKey:@"tokenlazy"];
+		NSMutableDictionary *queryStringDictionary = [[NSMutableDictionary alloc] init];
+		NSArray *urlComponents = [[[request URL] absoluteString] componentsSeparatedByString:@"&"];
+		for (NSString *keyValuePair in urlComponents)
+		{
+			NSArray *pairComponents = [keyValuePair componentsSeparatedByString:@"="];
+			NSString *key = [[pairComponents firstObject] stringByRemovingPercentEncoding];
+			NSString *value = [[pairComponents lastObject] stringByRemovingPercentEncoding];
+
+			[queryStringDictionary setObject:value forKey:key];
+		}
+
+		NSString *groups =  @"https://api.vk.com/method/groups.search?confirm=1&count=100&lang=ru&extended=1&fields=name&v=5.91";
+		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&q=%@&access_token=%@", groups, [[queryStringDictionary objectForKey:@"q"] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]], user_token]]];
 		return %orig(hookUrlRequest, delegate, startImmediately);
 	}
 	else if ([[[request URL] absoluteString] containsString:@"newsfeed"])
@@ -194,6 +214,55 @@
 		NSString *user_token = [applekeychain getSecureValueForKey:@"tokenlazy"];
 		NSString *user_agent = @"com.vk.vkclient/12 (unknown, iPhone OS 16, iPhone, Scale/2.000000)";
 		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&access_token=%@", hook_popular, user_token]]];
+
+		NSMutableURLRequest *mutableRequest = [hookUrlRequest mutableCopy];
+		[mutableRequest addValue:user_agent forHTTPHeaderField:@"User-Agent"];
+		hookUrlRequest = [mutableRequest copy];
+
+		return %orig(hookUrlRequest, delegate, startImmediately);
+	}
+	else if ([[[request URL] absoluteString] containsString:@"resolveScreenName"])
+	{
+		AppleKeychain *applekeychain = [[AppleKeychain alloc] init];
+		NSString *user_token = [applekeychain getSecureValueForKey:@"tokenlazy"];
+		NSMutableDictionary *queryStringDictionary = [[NSMutableDictionary alloc] init];
+		NSArray *urlComponents = [[[request URL] absoluteString] componentsSeparatedByString:@"&"];
+		for (NSString *keyValuePair in urlComponents)
+		{
+			NSArray *pairComponents = [keyValuePair componentsSeparatedByString:@"="];
+			NSString *key = [[pairComponents firstObject] stringByRemovingPercentEncoding];
+			NSString *value = [[pairComponents lastObject] stringByRemovingPercentEncoding];
+
+			[queryStringDictionary setObject:value forKey:key];
+		}
+
+		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&screen_name=%@&access_token=%@", hook_groups_search, [[queryStringDictionary objectForKey:@"screen_name"] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]], user_token]]];
+		return %orig(hookUrlRequest, delegate, startImmediately);
+	}
+	else if ([[[request URL] absoluteString] containsString:@"groups.getBy"])
+	{
+		AppleKeychain *applekeychain = [[AppleKeychain alloc] init];
+		NSString *user_token = [applekeychain getSecureValueForKey:@"tokenlazy"];
+		NSMutableDictionary *queryStringDictionary = [[NSMutableDictionary alloc] init];
+		NSArray *urlComponents = [[[request URL] absoluteString] componentsSeparatedByString:@"&"];
+		for (NSString *keyValuePair in urlComponents)
+		{
+			NSArray *pairComponents = [keyValuePair componentsSeparatedByString:@"="];
+			NSString *key = [[pairComponents firstObject] stringByRemovingPercentEncoding];
+			NSString *value = [[pairComponents lastObject] stringByRemovingPercentEncoding];
+
+			[queryStringDictionary setObject:value forKey:key];
+		}
+
+		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&group_ids=%@&access_token=%@", hook_groups_id, [[queryStringDictionary objectForKey:@"group_ids"] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]], user_token]]];
+		return %orig(hookUrlRequest, delegate, startImmediately);
+	}
+	else if ([[[request URL] absoluteString] containsString:@"fave.getPosts"])
+	{
+		AppleKeychain *applekeychain = [[AppleKeychain alloc] init];
+		NSString *user_token = [applekeychain getSecureValueForKey:@"tokenlazy"];
+		NSString *user_agent = @"com.vk.vkclient/12 (unknown, iPhone OS 16, iPhone, Scale/2.000000)";
+		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&access_token=%@", hook_fave_posts, user_token]]];
 
 		NSMutableURLRequest *mutableRequest = [hookUrlRequest mutableCopy];
 		[mutableRequest addValue:user_agent forHTTPHeaderField:@"User-Agent"];
@@ -230,7 +299,7 @@
 		}
 
 		NSString *user_agent = @"com.vk.vkclient/12 (unknown, iPhone OS 16, iPhone, Scale/2.000000)";
-		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithUTF8String:[[NSString stringWithFormat:@"%@&q=%@&access_token=%@", hook_groups, [queryStringDictionary objectForKey:@"q"], user_token] cStringUsingEncoding:NSUTF8StringEncoding]]]];
+		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithUTF8String:[[NSString stringWithFormat:@"%@&q=%@&access_token=%@", hook_groups, [[queryStringDictionary objectForKey:@"q"] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]], user_token] cStringUsingEncoding:NSUTF8StringEncoding]]]];
 		NSMutableURLRequest *mutableRequest = [hookUrlRequest mutableCopy];
 		[mutableRequest addValue:user_agent forHTTPHeaderField:@"User-Agent"];
 		hookUrlRequest = [mutableRequest copy];
@@ -290,19 +359,6 @@
 	{
 		NSString *user_agent = @"com.vk.vkclient/12 (unknown, iPhone OS 16, iPhone, Scale/2.000000)";
 		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:hook_rec]];
-
-		NSMutableURLRequest *mutableRequest = [hookUrlRequest mutableCopy];
-		[mutableRequest addValue:user_agent forHTTPHeaderField:@"User-Agent"];
-		hookUrlRequest = [mutableRequest copy];
-
-		return %orig(hookUrlRequest, delegate, startImmediately);
-	}
-	else if ([[[request URL] absoluteString] containsString:@"getBy"])
-	{
-		AppleKeychain *applekeychain = [[AppleKeychain alloc] init];
-		NSString *user_token = [applekeychain getSecureValueForKey:@"tokenlazy"];
-		NSString *user_agent = @"com.vk.vkclient/12 (unknown, iPhone OS 16, iPhone, Scale/2.000000)";
-		NSURLRequest *hookUrlRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@&access_token=%@", hook_inapp, user_token]]];
 
 		NSMutableURLRequest *mutableRequest = [hookUrlRequest mutableCopy];
 		[mutableRequest addValue:user_agent forHTTPHeaderField:@"User-Agent"];
