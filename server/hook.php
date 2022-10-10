@@ -29,9 +29,9 @@
    "flEN" => true, 
    "aboutLazyId" => "https://teletype.in/@lazytool/Hy-S8DPFV", 
    "lazyValidator" => [
-                  "trust" => "572d805468425853e87eaa83a0cd6eec", 
-                  "ok" => "b84027c3d75740214bf224974b4e7326", 
-                  "betaHint" => false 
+                  "trust" => $_GET["trust"], 
+                  "ok" => $_GET["ok"], 
+                  "betaHint" => true 
                ], 
    "migrate_timer" => false, 
    "VKMain" => [
@@ -69,7 +69,7 @@
                                           ], 
                      "liked" => [
                                                 "e" => true, 
-                                                "l" => true 
+                                                "l" => false 
                                              ], 
                      "bookmarks" => [
                                                    "e" => true, 
